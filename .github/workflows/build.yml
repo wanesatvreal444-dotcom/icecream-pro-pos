@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,17 +20,17 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
-      
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
+
       - name: Extract project
         run: |
           mkdir project
           unzip icecream_pro_android_studio_project.zip -d project
-          find project -name gradlew -type f
+          echo "Project files:"
+          find project -maxdepth 4 -type f | head -100
 
-      - 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -37,11 +38,17 @@ jobs:
 
       - name: Build APK
         run: |
-          PROJECT_DIR="$(dirname "$(find project -name settings.gradle -type f | head -1)")"
+          SETTINGS_FILE="$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)"
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Gradle project settings file not found"
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
           cd "$PROJECT_DIR"
           gradle assembleDebug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: IceCream-Pro-POS-debug-APK
