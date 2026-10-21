@@ -29,11 +29,17 @@ jobs:
           unzip icecream_pro_android_studio_project.zip -d project
           find project -name gradlew -type f
 
+      - 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Build APK
         run: |
-          cd "$(dirname "$(find project -name gradlew -type f | head -1)")"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          PROJECT_DIR="$(dirname "$(find project -name settings.gradle -type f | head -1)")"
+          cd "$PROJECT_DIR"
+          gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
