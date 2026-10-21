@@ -27,7 +27,7 @@ jobs:
       - name: Extract project
         run: |
           mkdir project
-          icecream_pro_android_studio_project_complete_items.zip
+          unzip icecream_pro_android_studio_project_complete_items.zip
           echo "Project files:"
           find project -maxdepth 4 -type f | head -100
 
