@@ -20,29 +20,41 @@ jobs:
         uses: android-actions/setup-android@v4
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        run: yes | sdkmanager --licenses || true
 
-      - name: Extract project
+      - name: Find and extract project ZIP
+        shell: bash
         run: |
+          set -euo pipefail
+          ZIP_FILE="$(find . -maxdepth 3 -type f -name '*complete_items*.zip' -print -quit)"
+          if [ -z "$ZIP_FILE" ]; then
+            ZIP_FILE="$(find . -maxdepth 3 -type f -name 'icecream_pro_android_studio_project*.zip' -print -quit)"
+          fi
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No IceCream project ZIP found in repository. Upload the downloaded ZIP to the repository root."
+            find . -maxdepth 3 -type f | head -100
+            exit 1
+          fi
+          echo "Using ZIP: $ZIP_FILE"
           mkdir -p project
-          unzip -o icecream_pro_android_studio_project_complete_items.zip -d project
-          find project -name settings.gradle -o -name settings.gradle.kts
+          unzip -o "$ZIP_FILE" -d project
+          SETTINGS_FILE="$(find project -type f \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)"
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: ZIP extracted, but settings.gradle was not found. ZIP contents:"
+            find project -maxdepth 5 -type f | head -100
+            exit 1
+          fi
+          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Found Gradle project at: $PROJECT_DIR"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build APK
-        run: |
-          SETTINGS_FILE="$(find project -name settings.gradle -o -name settings.gradle.kts | head -1)"
-          if [ -z "$SETTINGS_FILE" ]; then
-            echo "ERROR: Gradle project settings file not found"
-            exit 1
-          fi
-          PROJECT_DIR="$(dirname "$SETTINGS_FILE")"
-          cd "$PROJECT_DIR"
-          gradle assembleDebug
+      - name: Build debug APK
+        run: gradle -p "$PROJECT_DIR" assembleDebug
 
       - name: Upload APK
         if: success()
@@ -50,3 +62,4 @@ jobs:
         with:
           name: IceCream-Pro-POS-debug-APK
           path: project/**/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
